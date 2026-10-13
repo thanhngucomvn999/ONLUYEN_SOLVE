@@ -125,7 +125,7 @@ export class Panel {
       <div class="head">
         <div class="title">
           <span class="dot ok" id="olv-dot"></span>
-          <b>ONLUYEN Solver v2.0</b>
+          <b>ONLUYEN Solver v<span id="olv-ver">?</span></b>
         </div>
         <div class="actions">
           <span id="olv-mini" title="Thu nhỏ">−</span>
