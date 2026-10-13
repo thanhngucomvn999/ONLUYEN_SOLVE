@@ -9,13 +9,12 @@ export const CONFIG = {
   HUMAN_DELAY_MAX: 120,
   LOG_LEVEL: 'INFO',
   DEFAULT_PROVIDER: 'groq',
-  // ─── v3.0 NEW ───
-  THINK_BEFORE_ANSWER: true,      // Logic-First Reasoning
-  MAX_CONTEXT_QUESTIONS: 5,       // Multi-Question Sequential
-  RATE_LIMIT_MS: 1000,            // Rate limiting giữa các câu
-  ENABLE_MATHJAX: true,           // Bật MathJax extraction
-  ENABLE_MULTIMODAL: true,        // Bật vision cho ảnh
-  ENABLE_SMART_RESET: true,       // Bật Smart Reset Loop
+  THINK_BEFORE_ANSWER: true,
+  MAX_CONTEXT_QUESTIONS: 5,
+  RATE_LIMIT_MS: 1000,
+  ENABLE_MATHJAX: true,
+  ENABLE_MULTIMODAL: true,
+  ENABLE_SMART_RESET: true,
 };
 
 export const PROVIDER_REGISTRY = {
