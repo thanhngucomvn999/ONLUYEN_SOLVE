@@ -14,36 +14,72 @@ export class Scraper {
   }
 
   // ═══════════════════════════════════════════════════
-  // MATHJAX & LATEX EXTRACTION (từ repo gốc)
-  // Chuyển công thức phức tạp thành text LLM đọc được
+  // CHECK ELEMENT SELECTED (inline, tránh circular import)
+  // ═══════════════════════════════════════════════════
+  static _isElSelected(el) {
+    if (!el) return false;
+    try {
+      if (el.checked) return true;
+      const cls = (el.className || '').toString().toLowerCase();
+      if (/(selected|active|checked|chosen|picked)/.test(cls)) return true;
+      if (el.getAttribute('aria-checked') === 'true') return true;
+      if (el.getAttribute('aria-selected') === 'true') return true;
+      const parent = el.closest && el.closest('div, label, li');
+      if (parent) {
+        const pc = (parent.className || '').toString().toLowerCase();
+        if (/(selected|active|checked|chosen|picked)/.test(pc)) return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════
+  // CHECK ANSWERED — Phát hiện câu đã làm
+  // ═══════════════════════════════════════════════════
+  static isAnswered(q) {
+    try {
+      if (q.type === 'truefalse') {
+        return Scraper._isElSelected(q.tfEls.trueEl) || Scraper._isElSelected(q.tfEls.falseEl);
+      }
+      if (q.type === 'choice') {
+        return q.choices.some((c) => Scraper._isElSelected(c.el) || Scraper._isElSelected(c.inputEl));
+      }
+      if (q.type === 'fill' && q.inputEl) {
+        return q.inputEl.value && q.inputEl.value.trim().length > 0;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════
+  // MATHJAX & LATEX EXTRACTION
   // ═══════════════════════════════════════════════════
   static _extractMathJax(el) {
     if (!CONFIG.ENABLE_MATHJAX || !el) return '';
-
     const results = [];
 
-    // 1. MathJax v2: <script type="math/tex">
-    el.querySelectorAll('script[type^="math/tex"]').forEach(s => {
+    el.querySelectorAll('script[type^="math/tex"]').forEach((s) => {
       const tex = s.textContent.trim();
       if (tex) results.push(`$${tex}$`);
     });
 
-    // 2. MathJax v3: <mjx-container> hoặc <math>
-    el.querySelectorAll('mjx-container, math').forEach(m => {
+    el.querySelectorAll('mjx-container, math').forEach((m) => {
       const tex = m.getAttribute('data-latex') || m.getAttribute('aria-label') || m.textContent;
       if (tex) results.push(`$${tex.trim()}$`);
     });
 
-    // 3. LaTeX inline: \(...\) hoặc \[...\]
     const text = el.innerText || '';
     const inlineMatches = text.match(/\\\((.*?)\\\)/g) || [];
     const blockMatches = text.match(/\\\[(.*?)\\\]/g) || [];
-    [...inlineMatches, ...blockMatches].forEach(m => {
+    [...inlineMatches, ...blockMatches].forEach((m) => {
       if (!results.includes(m)) results.push(m);
     });
 
-    // 4. Element với class MathJax
-    el.querySelectorAll('.MathJax, .MathJax_Preview, .math').forEach(m => {
+    el.querySelectorAll('.MathJax, .MathJax_Preview, .math').forEach((m) => {
       const tex = m.getAttribute('data-latex') || m.textContent.trim();
       if (tex && !results.includes(`$${tex}$`)) results.push(`$${tex}$`);
     });
@@ -52,33 +88,26 @@ export class Scraper {
   }
 
   // ═══════════════════════════════════════════════════
-  // SCAN ALL — Heuristic detection (từ repo gốc)
-  // Fix: dùng Scraper.parseBlock thay vì this.parseBlock
+  // SCAN ALL
   // ═══════════════════════════════════════════════════
   static scanAll() {
     const out = [];
     const seen = new Set();
 
-    // ─── STRATEGY 1: Tìm leaf node có "Câu X" ───
     const leafs = document.querySelectorAll(
       'div, span, p, h1, h2, h3, h4, label, strong, b, em, i'
     );
 
     leafs.forEach((leaf) => {
-      // Bỏ qua leaf có con (không phải leaf thật)
       if (leaf.children.length > 0) return;
-
       const txt = (leaf.innerText || '').trim();
       if (!/^(Câu|Bài|Question)\s*\d+/i.test(txt)) return;
 
-      // ─── Leo lên tìm khối cha chứa đáp án ───
       let node = leaf.parentElement;
       let depth = 0;
 
       while (node && depth < 6) {
         const t = node.innerText || '';
-
-        // Filter kích thước hợp lý
         if (t.length < 30 || t.length > 5000) {
           node = node.parentElement;
           depth++;
@@ -92,7 +121,6 @@ export class Scraper {
         ) !== null;
 
         if (hasABCD || hasTF || hasInput) {
-          // ─── Đảm bảo là khối nhỏ nhất ───
           let isSmallest = true;
           const children = node.querySelectorAll('div, section, article');
           for (const child of children) {
@@ -104,7 +132,7 @@ export class Scraper {
           }
 
           if (isSmallest && !seen.has(node)) {
-            const q = Scraper.parseBlock(node); // ✅ FIX: dùng tên class
+            const q = Scraper.parseBlock(node);
             if (q) {
               seen.add(node);
               out.push(q);
@@ -117,7 +145,6 @@ export class Scraper {
       }
     });
 
-    // ─── STRATEGY 2 (FALLBACK): Quét div có input/TF/ABCD ───
     if (out.length === 0) {
       document.querySelectorAll('div').forEach((el) => {
         if (el.innerText.length > 5000 || el.innerText.length < 20) return;
@@ -144,26 +171,23 @@ export class Scraper {
   }
 
   // ═══════════════════════════════════════════════════
-  // PARSE BLOCK — Fault-Tolerant (từ repo gốc)
+  // PARSE BLOCK
   // ═══════════════════════════════════════════════════
   static parseBlock(block) {
     try {
-      // ─── Extract text + MathJax ───
       const mathText = Scraper._extractMathJax(block);
       const rawText = block.innerText.replace(/\s+/g, ' ').trim();
       const fullText = mathText ? `${rawText}\n\n[MathJax: ${mathText}]` : rawText;
 
-      // Cắt bỏ phần đáp án A/B/C/D khỏi text câu hỏi
       let text = fullText;
       const m = rawText.match(/([A-D][\.\)]\s*.*)/);
       if (m) text = fullText.substring(0, m.index + (mathText ? mathText.length : 0)).trim();
 
       if (!text || text.length < 5) return null;
 
-      // ═══════════ TRUE/FALSE (dạng div hoặc input) ═══════════
+      // TRUE/FALSE
       const tfEls = { trueEl: null, falseEl: null, type: 'unknown' };
 
-      // 1. Radio input + label
       block.querySelectorAll('label, .answer-item, .choice, .option').forEach((el) => {
         const t = Scraper._normVN(el.innerText || '');
         if (t === 'dung' || t === 'true') {
@@ -176,7 +200,6 @@ export class Scraper {
         }
       });
 
-      // 2. Div/span leaf
       if (!tfEls.trueEl || !tfEls.falseEl) {
         block.querySelectorAll('div, span, button, [role="button"], a').forEach((el) => {
           if (el.children.length > 1) return;
@@ -190,7 +213,7 @@ export class Scraper {
         return { el: block, type: 'truefalse', text, tfEls };
       }
 
-      // ═══════════ MULTIPLE CHOICE ═══════════
+      // MULTIPLE CHOICE
       const choices = [];
       block.querySelectorAll('div, label, span, li, p').forEach((el) => {
         if (el.children.length > 3) return;
@@ -206,7 +229,6 @@ export class Scraper {
         }
       });
 
-      // Loại trùng lặp
       const uniq = [];
       const seenL = new Set();
       choices.forEach((c) => {
@@ -220,7 +242,7 @@ export class Scraper {
         return { el: block, type: 'choice', text, choices: uniq };
       }
 
-      // ═══════════ FILL-IN ═══════════
+      // FILL
       const inputEl = block.querySelector(
         'input[type="text"], input:not([type]), input[type="number"], textarea'
       );
@@ -230,18 +252,16 @@ export class Scraper {
 
       return null;
     } catch (err) {
-      // Fault-Tolerant: bỏ qua block lỗi
       logger.warn(`Scraper: bỏ qua block lỗi — ${err.message}`);
       return null;
     }
   }
 
   // ═══════════════════════════════════════════════════
-  // IMAGE EXTRACTION (Multimodal Vision)
+  // IMAGE EXTRACTION
   // ═══════════════════════════════════════════════════
   static async getImages(container) {
     if (!CONFIG.ENABLE_MULTIMODAL) return [];
-
     const imgs = container.querySelectorAll('img');
     const out = [];
 
@@ -260,9 +280,7 @@ export class Scraper {
           fr.readAsDataURL(blob);
         });
         out.push(dataUrl);
-      } catch (_) {
-        // Fault-Tolerant: bỏ qua ảnh lỗi
-      }
+      } catch (_) {}
     }
     return out;
   }
