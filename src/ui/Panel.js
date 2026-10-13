@@ -7,6 +7,21 @@ export class Panel {
     if (document.getElementById('olv-panel')) return;
 
     // ═══════════════════════════════════════════════════
+    // LẤY VERSION ĐỘNG
+    // ═══════════════════════════════════════════════════
+    const SCRIPT_VERSION = (() => {
+      try {
+        if (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) {
+          return GM_info.script.version;
+        }
+        // Fallback nếu GM_info không có (test mode)
+        return '3.0.0';
+      } catch (_) {
+        return '3.0.0';
+      }
+    })();
+
+    // ═══════════════════════════════════════════════════
     // INJECT CSS
     // ═══════════════════════════════════════════════════
     const style = document.createElement('style');
@@ -26,6 +41,8 @@ export class Panel {
         cursor:move;flex-shrink:0;user-select:none}
       #olv-panel .head .title{display:flex;align-items:center;gap:8px}
       #olv-panel .head b{color:#11111b;font-size:13px;font-weight:700;letter-spacing:.3px}
+      #olv-panel .head .ver{color:rgba(17,17,27,.65);font-size:10px;font-weight:600;
+        background:rgba(17,17,27,.15);padding:1px 6px;border-radius:6px;letter-spacing:.3px}
       #olv-panel .head .dot{width:8px;height:8px;border-radius:50%;background:#f9e2af;
         box-shadow:0 0 8px currentColor;animation:pulse 2s infinite}
       #olv-panel .head .dot.ok{background:#a6e3a1}
@@ -46,6 +63,7 @@ export class Panel {
       #olv-panel .body.active{display:block}
       #olv-panel .body::-webkit-scrollbar{width:8px}
       #olv-panel .body::-webkit-scrollbar-thumb{background:#45475a;border-radius:4px}
+      #olv-panel .body::-webkit-scrollbar-thumb:hover{background:#585b70}
       #olv-panel .section{padding:14px 16px}
       #olv-panel .row{display:flex;gap:6px;margin-bottom:6px}
       #olv-panel button{flex:1;background:#313244;color:#cdd6f4;border:1px solid #45475a;
@@ -61,6 +79,7 @@ export class Panel {
       #olv-panel button.go:hover{box-shadow:0 4px 14px rgba(166,227,161,.4)}
       #olv-panel button.stop{background:linear-gradient(135deg,#f38ba8 0%,#eba0ac 100%);
         color:#11111b;border:0;font-weight:700}
+      #olv-panel button.stop:hover{box-shadow:0 4px 14px rgba(243,139,168,.4)}
       #olv-panel button.debug{color:#f9e2af}
       #olv-panel button.test{color:#89b4fa}
       #olv-panel .mini-btn{flex:0 0 auto;padding:10px 11px}
@@ -69,6 +88,8 @@ export class Panel {
         margin:12px 0 5px;text-transform:uppercase;letter-spacing:.6px}
       #olv-panel label .hint{color:#7f849c;font-weight:500;text-transform:none;
         font-size:9px;letter-spacing:0}
+      #olv-panel label .hint a{color:#89b4fa;text-decoration:none}
+      #olv-panel label .hint a:hover{text-decoration:underline}
       #olv-panel input,#olv-panel select{width:100%;
         padding:9px 11px;background:#11111b;color:#cdd6f4;
         border:1px solid #313244;border-radius:8px;font-size:11px;
@@ -101,6 +122,7 @@ export class Panel {
       #olv-log::-webkit-scrollbar{width:6px}
       #olv-log::-webkit-scrollbar-thumb{background:#45475a;border-radius:3px}
       #olv-log .log-line{padding:2px 0;border-bottom:1px solid rgba(69,71,90,.3)}
+      #olv-log .log-line:last-child{border-bottom:0}
       #olv-log .log-time{color:#7f849c;margin-right:6px}
       #olv-log .log-info{color:#89b4fa}
       #olv-log .log-warn{color:#f9e2af}
@@ -110,6 +132,7 @@ export class Panel {
         text-align:center;border-top:1px solid #313244;display:flex;
         justify-content:space-between;align-items:center}
       #olv-panel .footer a{color:#89b4fa;text-decoration:none}
+      #olv-panel .footer a:hover{text-decoration:underline}
       @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
       @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
       .olv-spin{animation:spin 1s linear infinite;display:inline-block}
@@ -125,7 +148,8 @@ export class Panel {
       <div class="head">
         <div class="title">
           <span class="dot ok" id="olv-dot"></span>
-          <b>ONLUYEN Solver v<span id="olv-ver">?</span></b>
+          <b>ONLUYEN Solver</b>
+          <span class="ver">v${SCRIPT_VERSION}</span>
         </div>
         <div class="actions">
           <span id="olv-mini" title="Thu nhỏ">−</span>
@@ -187,7 +211,7 @@ export class Panel {
 
           <label>
             🔑 API Key
-            <span class="hint"><a href="#" id="olv-get-key" style="color:#89b4fa;text-decoration:none">Lấy key →</a></span>
+            <span class="hint"><a href="#" id="olv-get-key">Lấy key →</a></span>
           </label>
           <div class="input-group">
             <input id="olv-key" type="password" placeholder="Dán API key...">
@@ -196,7 +220,7 @@ export class Panel {
 
           <label>
             📦 Model
-            <span class="hint"><a href="#" id="olv-refresh-models" style="color:#89b4fa;text-decoration:none">⟳ Refresh</a></span>
+            <span class="hint"><a href="#" id="olv-refresh-models">⟳ Refresh</a></span>
           </label>
           <select id="olv-model"></select>
 
@@ -230,7 +254,7 @@ export class Panel {
           </div>
         </div>
         <div class="footer">
-          <span>v2.0.0</span>
+          <span>v${SCRIPT_VERSION}</span>
           <a href="https://github.com/thanhngucomvn999/ONLUYEN_SOLVE" target="_blank">GitHub →</a>
         </div>
       </div>
@@ -238,7 +262,7 @@ export class Panel {
     document.body.appendChild(p);
 
     // ═══════════════════════════════════════════════════
-    // HELPER: query element by id
+    // HELPERS
     // ═══════════════════════════════════════════════════
     const $ = (id) => document.getElementById(id);
 
@@ -265,13 +289,13 @@ export class Panel {
     }
 
     // ═══════════════════════════════════════════════════
-    // TAB SWITCH (event delegation)
+    // TABS
     // ═══════════════════════════════════════════════════
-    p.querySelectorAll('.tab').forEach(tab => {
+    p.querySelectorAll('.tab').forEach((tab) => {
       tab.addEventListener('click', (e) => {
         e.stopPropagation();
-        p.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        p.querySelectorAll('.body').forEach(b => b.classList.remove('active'));
+        p.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
+        p.querySelectorAll('.body').forEach((b) => b.classList.remove('active'));
         tab.classList.add('active');
         const body = $('olv-tab-' + tab.dataset.tab);
         if (body) body.classList.add('active');
@@ -283,7 +307,7 @@ export class Panel {
     // ═══════════════════════════════════════════════════
     const KEY_URLS = {
       groq: 'https://console.groq.com/keys',
-      gemini: 'https://aistudio.google.com/apikey',
+      gemini: 'https://aistudio.google.com/app/apikey',
       cerebras: 'https://cloud.cerebras.ai',
       openrouter: 'https://openrouter.ai/keys',
       openai: 'https://platform.openai.com/api-keys',
@@ -311,7 +335,7 @@ export class Panel {
         modelSel.style.display = 'block';
         customWrap.classList.remove('active');
         const currentModel = storage.getModel(id);
-        pr.models.forEach(m => {
+        pr.models.forEach((m) => {
           const opt = document.createElement('option');
           opt.value = m;
           opt.textContent = m;
@@ -346,13 +370,13 @@ export class Panel {
       e.stopPropagation();
 
       try {
-        // ─── HEADER ACTIONS ───
+        // ─── HEADER ───
         if (id === 'olv-mini') {
           p.classList.toggle('mini');
           return;
         }
         if (id === 'olv-toggle') {
-          p.querySelectorAll('.body').forEach(b => b.classList.remove('active'));
+          p.querySelectorAll('.body').forEach((b) => b.classList.remove('active'));
           const active = p.querySelector('.tab.active');
           if (active) $('olv-tab-' + active.dataset.tab).classList.add('active');
           return;
@@ -364,7 +388,7 @@ export class Panel {
           return;
         }
 
-        // ─── GET KEY LINK ───
+        // ─── GET KEY ───
         if (id === 'olv-get-key') {
           const url = KEY_URLS[provSel.value];
           if (url) window.open(url, '_blank');
@@ -385,7 +409,7 @@ export class Panel {
             if (models.length > 0) {
               PROVIDER_REGISTRY[provId].models = models;
               modelSel.innerHTML = '';
-              models.forEach(m => {
+              models.forEach((m) => {
                 const opt = document.createElement('option');
                 opt.value = m;
                 opt.textContent = m;
@@ -470,7 +494,7 @@ export class Panel {
         if (id === 'olv-once') {
           const l = Scraper.scanAll();
           const cache = storage.getCache();
-          const q = l.find(x => !cache[storage.hashQ(x.text + '|' + x.type)]);
+          const q = l.find((x) => !cache[storage.hashQ(x.text + '|' + x.type)]);
           if (q) {
             setStatus('Đang giải 1 câu...', 'busy');
             try { await solver.solveOne(q); setStatus('Đã giải 1 câu', 'ok'); }
@@ -483,7 +507,7 @@ export class Panel {
           return;
         }
 
-        // ─── DEBUG SCAN ───
+        // ─── DEBUG ───
         if (id === 'olv-debug') {
           const l = Scraper.scanAll();
           logger.info(`🔍 Quét thử: ${l.length} câu`);
@@ -510,7 +534,7 @@ export class Panel {
 
         // ─── EXPORT LOG ───
         if (id === 'olv-export') {
-          const logs = logger.history.map(h => `[${h.timestamp}] [${h.level}] ${h.messages.join(' ')}`).join('\n');
+          const logs = logger.history.map((h) => `[${h.timestamp}] [${h.level}] ${h.messages.join(' ')}`).join('\n');
           const blob = new Blob([logs], { type: 'text/plain' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -525,7 +549,7 @@ export class Panel {
         // ─── CLEAR LOG ───
         if (id === 'olv-clear-log') {
           const box = $('olv-log');
-          box.innerHTML = '';
+          if (box) box.innerHTML = '';
           logger.info('Đã xoá log panel');
           return;
         }
@@ -534,11 +558,12 @@ export class Panel {
         if (id === 'olv-copy-cfg') {
           const c = {
             selectedProvider: storage.getSelectedProvider(),
-            keys: {}, models: {},
+            keys: {},
+            models: {},
             customBaseUrl: storage.getCustomUrl(),
             customModel: storage.getCustomModel(),
           };
-          Object.keys(PROVIDER_REGISTRY).forEach(pid => {
+          Object.keys(PROVIDER_REGISTRY).forEach((pid) => {
             const k = storage.getKey(pid);
             if (k) c.keys[pid] = k;
             const m = storage.getModel(pid);
@@ -560,8 +585,8 @@ export class Panel {
             const text = await navigator.clipboard.readText();
             const c = JSON.parse(text);
             if (c.selectedProvider) storage.setSelectedProvider(c.selectedProvider);
-            if (c.keys) Object.keys(c.keys).forEach(pid => storage.setKey(pid, c.keys[pid]));
-            if (c.models) Object.keys(c.models).forEach(pid => storage.setModel(pid, c.models[pid]));
+            if (c.keys) Object.keys(c.keys).forEach((pid) => storage.setKey(pid, c.keys[pid]));
+            if (c.models) Object.keys(c.models).forEach((pid) => storage.setModel(pid, c.models[pid]));
             if (c.customBaseUrl) storage.setCustomUrl(c.customBaseUrl);
             if (c.customModel) storage.setCustomModel(c.customModel);
             logger.info('📥 Đã paste config');
@@ -580,21 +605,21 @@ export class Panel {
     });
 
     // ═══════════════════════════════════════════════════
-    // FETCH MODELS HELPER
+    // FETCH MODELS
     // ═══════════════════════════════════════════════════
     async function fetchModels(provId, key) {
-      if (provId === 'groq' || provId === 'openai' || provId === 'deepseek' || provId === 'openrouter' || provId === 'cerebras') {
+      if (['groq', 'openai', 'deepseek', 'openrouter', 'cerebras'].includes(provId)) {
         const baseUrl = PROVIDER_REGISTRY[provId].baseUrl.replace('/chat/completions', '/models');
         const res = await fetch(baseUrl, { headers: { 'Authorization': 'Bearer ' + key } });
         const data = await res.json();
-        return (data.data || []).map(m => m.id).filter(Boolean).sort();
+        return (data.data || []).map((m) => m.id).filter(Boolean).sort();
       }
       if (provId === 'gemini') {
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
         const data = await res.json();
         return (data.models || [])
-          .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
-          .map(m => m.name.replace('models/', ''));
+          .filter((m) => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+          .map((m) => m.name.replace('models/', ''));
       }
       return [];
     }
@@ -632,6 +657,6 @@ export class Panel {
     updateStats();
     setStatus('Sẵn sàng', 'ok');
 
-    console.log('[ONLUYEN] Panel v2.0 initialized. Click any button to see log.');
+    console.log(`[ONLUYEN] Panel v${SCRIPT_VERSION} initialized`);
   }
 }
