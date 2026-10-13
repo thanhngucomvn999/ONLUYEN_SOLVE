@@ -66,7 +66,7 @@ export class Panel {
       '#olv-panel .dot{width:7px;height:7px;border-radius:50%;background:#f9e2af;',
       'box-shadow:0 0 8px currentColor;animation:pulse 2s infinite}',
       '@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}',
-    ].join('\\n');
+    ].join('\n');
     document.head.appendChild(style);
 
     const p = document.createElement('div');
