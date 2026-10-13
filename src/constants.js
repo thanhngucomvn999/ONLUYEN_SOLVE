@@ -5,14 +5,20 @@ export const CONFIG = {
   RETRY_DELAY_MS: 2000,
   PROXY_TIMEOUT_MS: 60000,
   INSTANT_MODE: false,
-  HUMAN_DELAY_MIN: 200,
-  HUMAN_DELAY_MAX: 800,
+  HUMAN_DELAY_MIN: 30,
+  HUMAN_DELAY_MAX: 120,
   LOG_LEVEL: 'INFO',
   DEFAULT_PROVIDER: 'groq',
+  // ─── v3.0 NEW ───
+  THINK_BEFORE_ANSWER: true,      // Logic-First Reasoning
+  MAX_CONTEXT_QUESTIONS: 5,       // Multi-Question Sequential
+  RATE_LIMIT_MS: 1000,            // Rate limiting giữa các câu
+  ENABLE_MATHJAX: true,           // Bật MathJax extraction
+  ENABLE_MULTIMODAL: true,        // Bật vision cho ảnh
+  ENABLE_SMART_RESET: true,       // Bật Smart Reset Loop
 };
 
 export const PROVIDER_REGISTRY = {
-  // ═══════════════ MIỄN PHÍ ═══════════════
   groq: {
     name: 'Groq',
     category: 'free',
@@ -29,8 +35,8 @@ export const PROVIDER_REGISTRY = {
       'qwen/qwen3-32b',
       'deepseek-r1-distill-llama-70b',
     ],
+    visionModel: 'meta-llama/llama-4-scout-17b-16e-instruct',
   },
-
   gemini: {
     name: 'Google Gemini',
     category: 'free',
@@ -43,26 +49,19 @@ export const PROVIDER_REGISTRY = {
       'gemini-2.5-flash',
       'gemini-2.5-pro',
       'gemini-1.5-flash',
-      'gemini-1.5-flash-8b',
       'gemini-1.5-pro',
     ],
     isGemini: true,
+    visionModel: 'gemini-2.0-flash',
   },
-
   cerebras: {
     name: 'Cerebras',
     category: 'free',
     baseUrl: 'https://api.cerebras.ai/v1/chat/completions',
     authType: 'bearer',
     defaultModel: 'llama-3.3-70b',
-    models: [
-      'llama-3.3-70b',
-      'llama-3.1-8b',
-      'llama-4-scout-17b-16e-instruct',
-      'qwen-3-32b',
-    ],
+    models: ['llama-3.3-70b', 'llama-3.1-8b', 'llama-4-scout-17b-16e-instruct', 'qwen-3-32b'],
   },
-
   openrouter: {
     name: 'OpenRouter',
     category: 'free',
@@ -81,56 +80,35 @@ export const PROVIDER_REGISTRY = {
       'microsoft/phi-4:free',
       'mistralai/mistral-small-3.1-24b-instruct:free',
     ],
+    visionModel: 'meta-llama/llama-4-scout:free',
   },
-
-  // ═══════════════ TRẢ PHÍ ═══════════════
   openai: {
     name: 'OpenAI',
     category: 'paid',
     baseUrl: 'https://api.openai.com/v1/chat/completions',
     authType: 'bearer',
     defaultModel: 'gpt-4o-mini',
-    models: [
-      'gpt-4o-mini',
-      'gpt-4o',
-      'gpt-4.1',
-      'gpt-4.1-mini',
-      'gpt-4.1-nano',
-      'o1-mini',
-      'o3-mini',
-      'o4-mini',
-    ],
+    models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'o1-mini', 'o3-mini', 'o4-mini'],
+    visionModel: 'gpt-4o-mini',
   },
-
   anthropic: {
     name: 'Anthropic Claude',
     category: 'paid',
     baseUrl: 'https://api.anthropic.com/v1/messages',
     authType: 'x-api-key',
     defaultModel: 'claude-sonnet-4-20250514',
-    models: [
-      'claude-sonnet-4-20250514',
-      'claude-opus-4-20250514',
-      'claude-3-7-sonnet-20250219',
-      'claude-3-5-sonnet-20241022',
-      'claude-3-5-haiku-20241022',
-    ],
+    models: ['claude-sonnet-4-20250514', 'claude-opus-4-20250514', 'claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'],
     isAnthropic: true,
+    visionModel: 'claude-3-5-sonnet-20241022',
   },
-
   deepseek: {
     name: 'DeepSeek',
     category: 'paid',
     baseUrl: 'https://api.deepseek.com/v1/chat/completions',
     authType: 'bearer',
     defaultModel: 'deepseek-chat',
-    models: [
-      'deepseek-chat',
-      'deepseek-reasoner',
-    ],
+    models: ['deepseek-chat', 'deepseek-reasoner'],
   },
-
-  // ═══════════════ CUSTOM ═══════════════
   custom: {
     name: 'Custom (OpenAI-compatible)',
     category: 'custom',
