@@ -6,6 +6,9 @@ export class APIClient {
     this.storage = storage;
   }
 
+  // ═══════════════════════════════════════════════════
+  // CALL PROVIDER — Multi-provider (từ repo gốc)
+  // ═══════════════════════════════════════════════════
   async callProvider(providerId, prompt, images = []) {
     const p = PROVIDER_REGISTRY[providerId];
     if (!p) throw new Error('Provider không tồn tại: ' + providerId);
@@ -26,53 +29,74 @@ export class APIClient {
       headers['anthropic-version'] = '2023-06-01';
     }
 
-    const model = this.storage.getModel(providerId) || p.defaultModel;
+    // Chọn model: vision nếu có ảnh
+    const hasImages = images.length > 0 && CONFIG.ENABLE_MULTIMODAL;
+    const model = hasImages && p.visionModel
+      ? p.visionModel
+      : (this.storage.getModel(providerId) || p.defaultModel);
 
+    // ─── Build body theo từng provider ───
     if (p.isGemini) {
       url = p.baseUrl.replace('{model}', model).replace('{key}', key);
       const parts = [{ text: prompt }];
-      images.forEach(function (img) {
-        parts.push({ inline_data: { mime_type: 'image/jpeg', data: img.split(',')[1] } });
+      images.forEach((img) => {
+        parts.push({
+          inline_data: {
+            mime_type: img.match(/^data:(.*?);/)?.[1] || 'image/jpeg',
+            data: img.split(',')[1],
+          },
+        });
       });
-      body = { contents: [{ parts: parts }] };
+      body = { contents: [{ parts }] };
     } else if (p.isAnthropic) {
-      body = {
-        model: model,
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: prompt }],
-      };
-    } else {
-      if (providerId === 'custom') url = this.storage.getCustomUrl();
-      const content = images.length
-        ? [{ type: 'text', text: prompt }].concat(
-            images.map(function (i) { return { type: 'image_url', image_url: { url: i } }; })
-          )
+      const content = hasImages
+        ? [
+            { type: 'text', text: prompt },
+            ...images.map((i) => ({
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: i.match(/^data:(.*?);/)?.[1] || 'image/jpeg',
+                data: i.split(',')[1],
+              },
+            })),
+          ]
         : prompt;
-      body = {
-        model: model,
-        messages: [{ role: 'user', content: content }],
-        temperature: 0.1,
-      };
+      body = { model, max_tokens: 2048, messages: [{ role: 'user', content }] };
+    } else {
+      // OpenAI-compatible
+      if (providerId === 'custom') url = this.storage.getCustomUrl();
+      const content = hasImages
+        ? [
+            { type: 'text', text: prompt },
+            ...images.map((i) => ({ type: 'image_url', image_url: { url: i } })),
+          ]
+        : prompt;
+      body = { model, messages: [{ role: 'user', content }], temperature: 0.1 };
     }
 
-    logger.info('Gọi ' + p.name + ' (' + model + ')...');
-    const res = await this._http({ method: 'POST', url: url, headers: headers, data: body });
+    logger.info(`Gọi ${p.name} (${model})${hasImages ? ' [vision]' : ''}...`);
+    const res = await this._http({ method: 'POST', url, headers, data: body });
 
+    // Parse response
     if (p.isGemini) {
-      return (res.candidates && res.candidates[0] && res.candidates[0].content &&
-        res.candidates[0].content.parts[0].text) || '';
+      return res.candidates?.[0]?.content?.parts?.[0]?.text || '';
     }
     if (p.isAnthropic) {
-      return (res.content && res.content[0] && res.content[0].text) || '';
+      return res.content?.[0]?.text || '';
     }
-    return (res.choices && res.choices[0] && res.choices[0].message.content) || '';
+    return res.choices?.[0]?.message?.content || '';
   }
 
+  // ═══════════════════════════════════════════════════
+  // GET ANSWER — Multi-Question Sequential fallback
+  // ═══════════════════════════════════════════════════
   async getAnswer(question) {
     const prompt = this._buildPrompt(question);
-    const images = await this._getImages(question.el);
+    const images = await Scraper.getImages(question.el);
     const errors = [];
 
+    // Ưu tiên: provider đã chọn → các provider có key khác
     const priority = [this.storage.getSelectedProvider()];
     for (const id of Object.keys(PROVIDER_REGISTRY)) {
       if (id !== this.storage.getSelectedProvider() && this.storage.getKey(id)) {
@@ -81,65 +105,84 @@ export class APIClient {
     }
 
     for (const id of priority) {
-      try {
-        const txt = await this.callProvider(id, prompt, images);
-        if (txt && txt.trim()) return txt.trim();
-      } catch (e) {
-        errors.push(PROVIDER_REGISTRY[id].name + ': ' + e.message);
-        logger.warn(PROVIDER_REGISTRY[id].name + ' fail, thử provider kế tiếp...');
+      // Retry logic
+      for (let attempt = 0; attempt < CONFIG.RETRIES; attempt++) {
+        try {
+          const txt = await this.callProvider(id, prompt, images);
+          if (txt && txt.trim()) return txt.trim();
+        } catch (err) {
+          const isLastAttempt = attempt === CONFIG.RETRIES - 1;
+          if (isLastAttempt) {
+            errors.push(`${PROVIDER_REGISTRY[id].name}: ${err.message}`);
+            logger.warn(`${PROVIDER_REGISTRY[id].name} fail → thử provider kế tiếp...`);
+          } else {
+            logger.warn(`${PROVIDER_REGISTRY[id].name} retry ${attempt + 1}/${CONFIG.RETRIES}...`);
+            await new Promise((r) => setTimeout(r, CONFIG.RETRY_DELAY_MS));
+          }
+        }
       }
     }
+
     throw new Error('Tất cả provider đều lỗi:\n' + errors.join('\n'));
   }
 
+  // ═══════════════════════════════════════════════════
+  // BUILD PROMPT — Logic-First Reasoning (từ repo gốc)
+  // ═══════════════════════════════════════════════════
   _buildPrompt(q) {
-    let s = 'Bạn là trợ lý giải bài tập. Trả lời CỰC NGẮN, chỉ đưa đáp án cuối cùng trên 1 dòng.\n\n';
-    s += 'Loại câu hỏi: ' + q.type + '\n';
-    s += 'Nội dung: ' + q.text + '\n';
-    if (q.type === 'truefalse') s += '\n→ Chỉ trả lời "Đúng" hoặc "Sai".';
-    if (q.type === 'fill') s += '\n→ Chỉ trả lời giá trị cần điền, KHÔNG giải thích.';
-    if (q.type === 'choice') s += '\n→ Chỉ trả lời 1 chữ cái A/B/C/D.';
-    return s;
-  }
+    const lines = [];
 
-  async _getImages(container) {
-    const imgs = container.querySelectorAll('img');
-    const out = [];
-    for (const img of imgs) {
-      if (!img.src) continue;
-      if (img.src.startsWith('data:')) {
-        out.push(img.src);
-        continue;
-      }
-      try {
-        const res = await fetch(img.src);
-        const blob = await res.blob();
-        const dataUrl = await new Promise(function (r) {
-          const fr = new FileReader();
-          fr.onload = function () { r(fr.result); };
-          fr.readAsDataURL(blob);
-        });
-        out.push(dataUrl);
-      } catch (_) { /* skip */ }
+    lines.push('Bạn là trợ lý giải bài tập chuyên nghiệp.');
+    lines.push('');
+
+    if (CONFIG.THINK_BEFORE_ANSWER) {
+      lines.push('QUY TRÌNH:');
+      lines.push('1. Đọc kỹ đề bài');
+      lines.push('2. Suy luận từng bước (nếu là toán)');
+      lines.push('3. Đưa ra đáp án cuối cùng');
+      lines.push('');
+      lines.push('ĐỊNH DẠNG TRẢ LỜI:');
+      lines.push('[Suy luận ngắn 1-2 câu]');
+      lines.push('---');
+      lines.push('[Đáp án cuối cùng]');
+    } else {
+      lines.push('Trả lời CỰC NGẮN, chỉ đưa đáp án cuối cùng.');
     }
-    return out;
+
+    lines.push('');
+    lines.push('Loại câu hỏi: ' + q.type);
+    lines.push('Nội dung: ' + q.text);
+
+    if (q.type === 'truefalse') {
+      lines.push('');
+      lines.push('→ Chỉ trả lời "Đúng" hoặc "Sai" (không thêm gì khác).');
+    }
+    if (q.type === 'fill') {
+      lines.push('');
+      lines.push('→ Chỉ trả lời giá trị số/chuỗi cần điền.');
+      lines.push('→ Dùng dấu phẩy cho số thập phân (VD: 3,14 thay vì 3.14).');
+      lines.push('→ Nếu là phân số, viết dạng a/b (VD: 3/2).');
+    }
+    if (q.type === 'choice') {
+      lines.push('');
+      lines.push('→ Chỉ trả lời 1 chữ cái A/B/C/D.');
+    }
+
+    return lines.join('\n');
   }
 
-  _http(opts) {
-    const method = opts.method;
-    const url = opts.url;
-    const headers = opts.headers;
-    const data = opts.data;
-    const timeout = opts.timeout || CONFIG.PROXY_TIMEOUT_MS;
-
-    return new Promise(function (resolve, reject) {
+  // ═══════════════════════════════════════════════════
+  // HTTP WRAPPER
+  // ═══════════════════════════════════════════════════
+  _http({ method, url, headers, data, timeout = CONFIG.PROXY_TIMEOUT_MS }) {
+    return new Promise((resolve, reject) => {
       GM_xmlhttpRequest({
-        method: method,
-        url: url,
-        headers: headers,
+        method,
+        url,
+        headers,
         data: data ? JSON.stringify(data) : undefined,
-        timeout: timeout,
-        onload: function (res) {
+        timeout,
+        onload: (res) => {
           try {
             if (res.status >= 200 && res.status < 300) {
               resolve(JSON.parse(res.responseText));
@@ -147,16 +190,16 @@ export class APIClient {
               let detail = res.responseText.slice(0, 300);
               try {
                 const parsed = JSON.parse(res.responseText);
-                detail = (parsed.error && parsed.error.message) || detail;
-              } catch (_) { /* ignore */ }
-              reject(new Error('HTTP ' + res.status + ': ' + detail));
+                detail = parsed.error?.message || detail;
+              } catch (_) {}
+              reject(new Error(`HTTP ${res.status}: ${detail}`));
             }
           } catch (e) {
             reject(e);
           }
         },
-        onerror: function () { reject(new Error('Lỗi mạng')); },
-        ontimeout: function () { reject(new Error('Timeout')); },
+        onerror: () => reject(new Error('Lỗi mạng')),
+        ontimeout: () => reject(new Error('Timeout')),
       });
     });
   }
