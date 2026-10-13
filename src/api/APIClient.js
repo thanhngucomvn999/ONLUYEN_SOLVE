@@ -6,9 +6,6 @@ export class APIClient {
     this.storage = storage;
   }
 
-  // ═══════════════════════════════════════════════════
-  // CALL PROVIDER — Multi-provider (từ repo gốc)
-  // ═══════════════════════════════════════════════════
   async callProvider(providerId, prompt, images = []) {
     const p = PROVIDER_REGISTRY[providerId];
     if (!p) throw new Error('Provider không tồn tại: ' + providerId);
@@ -29,20 +26,18 @@ export class APIClient {
       headers['anthropic-version'] = '2023-06-01';
     }
 
-    // Chọn model: vision nếu có ảnh
     const hasImages = images.length > 0 && CONFIG.ENABLE_MULTIMODAL;
     const model = hasImages && p.visionModel
       ? p.visionModel
       : (this.storage.getModel(providerId) || p.defaultModel);
 
-    // ─── Build body theo từng provider ───
     if (p.isGemini) {
       url = p.baseUrl.replace('{model}', model).replace('{key}', key);
       const parts = [{ text: prompt }];
       images.forEach((img) => {
         parts.push({
           inline_data: {
-            mime_type: img.match(/^data:(.*?);/)?.[1] || 'image/jpeg',
+            mime_type: (img.match(/^data:(.*?);/) || [])[1] || 'image/jpeg',
             data: img.split(',')[1],
           },
         });
@@ -56,7 +51,7 @@ export class APIClient {
               type: 'image',
               source: {
                 type: 'base64',
-                media_type: i.match(/^data:(.*?);/)?.[1] || 'image/jpeg',
+                media_type: (i.match(/^data:(.*?);/) || [])[1] || 'image/jpeg',
                 data: i.split(',')[1],
               },
             })),
@@ -64,7 +59,6 @@ export class APIClient {
         : prompt;
       body = { model, max_tokens: 2048, messages: [{ role: 'user', content }] };
     } else {
-      // OpenAI-compatible
       if (providerId === 'custom') url = this.storage.getCustomUrl();
       const content = hasImages
         ? [
@@ -78,25 +72,16 @@ export class APIClient {
     logger.info(`Gọi ${p.name} (${model})${hasImages ? ' [vision]' : ''}...`);
     const res = await this._http({ method: 'POST', url, headers, data: body });
 
-    // Parse response
-    if (p.isGemini) {
-      return res.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    }
-    if (p.isAnthropic) {
-      return res.content?.[0]?.text || '';
-    }
+    if (p.isGemini) return res.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (p.isAnthropic) return res.content?.[0]?.text || '';
     return res.choices?.[0]?.message?.content || '';
   }
 
-  // ═══════════════════════════════════════════════════
-  // GET ANSWER — Multi-Question Sequential fallback
-  // ═══════════════════════════════════════════════════
   async getAnswer(question) {
     const prompt = this._buildPrompt(question);
     const images = await Scraper.getImages(question.el);
     const errors = [];
 
-    // Ưu tiên: provider đã chọn → các provider có key khác
     const priority = [this.storage.getSelectedProvider()];
     for (const id of Object.keys(PROVIDER_REGISTRY)) {
       if (id !== this.storage.getSelectedProvider() && this.storage.getKey(id)) {
@@ -105,14 +90,13 @@ export class APIClient {
     }
 
     for (const id of priority) {
-      // Retry logic
       for (let attempt = 0; attempt < CONFIG.RETRIES; attempt++) {
         try {
           const txt = await this.callProvider(id, prompt, images);
           if (txt && txt.trim()) return txt.trim();
         } catch (err) {
-          const isLastAttempt = attempt === CONFIG.RETRIES - 1;
-          if (isLastAttempt) {
+          const isLast = attempt === CONFIG.RETRIES - 1;
+          if (isLast) {
             errors.push(`${PROVIDER_REGISTRY[id].name}: ${err.message}`);
             logger.warn(`${PROVIDER_REGISTRY[id].name} fail → thử provider kế tiếp...`);
           } else {
@@ -126,12 +110,8 @@ export class APIClient {
     throw new Error('Tất cả provider đều lỗi:\n' + errors.join('\n'));
   }
 
-  // ═══════════════════════════════════════════════════
-  // BUILD PROMPT — Logic-First Reasoning (từ repo gốc)
-  // ═══════════════════════════════════════════════════
   _buildPrompt(q) {
     const lines = [];
-
     lines.push('Bạn là trợ lý giải bài tập chuyên nghiệp.');
     lines.push('');
 
@@ -171,9 +151,6 @@ export class APIClient {
     return lines.join('\n');
   }
 
-  // ═══════════════════════════════════════════════════
-  // HTTP WRAPPER
-  // ═══════════════════════════════════════════════════
   _http({ method, url, headers, data, timeout = CONFIG.PROXY_TIMEOUT_MS }) {
     return new Promise((resolve, reject) => {
       GM_xmlhttpRequest({
@@ -190,7 +167,7 @@ export class APIClient {
               let detail = res.responseText.slice(0, 300);
               try {
                 const parsed = JSON.parse(res.responseText);
-                detail = parsed.error?.message || detail;
+                detail = (parsed.error && parsed.error.message) || detail;
               } catch (_) {}
               reject(new Error(`HTTP ${res.status}: ${detail}`));
             }
