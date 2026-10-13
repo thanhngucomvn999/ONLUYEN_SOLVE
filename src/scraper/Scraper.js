@@ -46,7 +46,7 @@ export class Scraper {
             }
           }
           if (isSmallest && !seen.has(node)) {
-            const q = this.parseBlock(node);
+            const q = Scraper.parseBlock(node);
             if (q) {
               seen.add(node);
               out.push(q);
