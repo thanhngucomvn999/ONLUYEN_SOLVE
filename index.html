@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ONLUYEN Solver</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #1e1e2e 0%, #181825 100%); color: #cdd6f4;
+    min-height: 100vh; padding: 40px 20px; }
+  .container { max-width: 780px; margin: 0 auto; background: #181825;
+    border-radius: 20px; padding: 48px; box-shadow: 0 20px 60px rgba(0,0,0,.55);
+    border: 1px solid #313244; }
+  h1 { font-size: 36px; background: linear-gradient(135deg, #a6e3a1 0%, #89b4fa 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
+  .subtitle { color: #89b4fa; margin-bottom: 28px; font-size: 15px; }
+  h2 { color: #f9e2af; font-size: 20px; margin: 32px 0 14px; }
+  p, li { line-height: 1.75; color: #bac2de; margin-bottom: 10px; }
+  ul { padding-left: 22px; }
+  code { background: #11111b; color: #f38ba8; padding: 3px 8px; border-radius: 5px;
+    font-family: "JetBrains Mono", "Consolas", monospace; font-size: 13px; }
+  .btn { display: inline-block; padding: 14px 28px; border-radius: 10px;
+    text-decoration: none; font-weight: 700; margin: 8px 8px 8px 0;
+    transition: all .2s; font-size: 14px; }
+  .btn.primary { background: linear-gradient(135deg, #a6e3a1 0%, #94e2d5 100%); color: #11111b; }
+  .btn.primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(166,227,161,.3); }
+  .btn.secondary { background: #313244; color: #89b4fa; border: 1px solid #45475a; }
+  .badges { margin: 20px 0; }
+  .badge { display: inline-block; padding: 5px 12px; border-radius: 14px;
+    font-size: 11px; margin-right: 8px; font-weight: 700; }
+  .badge.free { background: #a6e3a1; color: #11111b; }
+  .badge.paid { background: #89b4fa; color: #11111b; }
+  .card { background: #11111b; padding: 20px; border-radius: 12px;
+    margin: 14px 0; border: 1px solid #313244; }
+  a { color: #89b4fa; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>ONLUYEN Solver</h1>
+  <p class="subtitle">AI Homework Solver cho onluyen.vn — Đa provider, miễn phí & trả phí</p>
+  <div class="badges">
+    <span class="badge free">Free: Groq, Gemini, Cerebras</span>
+    <span class="badge paid">Paid: OpenAI, Claude</span>
+    <span class="badge custom">Custom endpoint</span>
+  </div>
+  <h2>Cài đặt</h2>
+  <p>Bấm nút dưới để cài userscript qua Tampermonkey:</p>
+  <a class="btn primary" href="solver.user.js">📥 Cài đặt ONLUYEN Solver</a>
+  <a class="btn secondary" href="https://github.com/thanhngucomvn999/ONLUYEN_SOLVE" target="_blank">📂 Xem trên GitHub</a>
+  <h2>Lấy API key miễn phí</h2>
+  <div class="card">
+    <ul>
+      <li><strong>Groq</strong> — <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a></li>
+      <li><strong>Gemini</strong> — <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a></li>
+      <li><strong>Cerebras</strong> — <a href="https://cloud.cerebras.ai" target="_blank">cloud.cerebras.ai</a></li>
+      <li><strong>OpenRouter</strong> — <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></li>
+    </ul>
+  </div>
+  <h2>Lệnh Console</h2>
+  <div class="card">
+    <p><code>hwSolver.start()</code> — Giải tất cả câu hỏi</p>
+    <p><code>hwSolver.stop()</code> — Dừng</p>
+    <p><code>hwSolver.scan()</code> — Liệt kê câu hỏi đã detect</p>
+    <p><code>hwSolver.help()</code> — Xem trợ giúp</p>
+  </div>
+  <h2>License</h2>
+  <p>MIT © 2026 <a href="https://github.com/thanhngucomvn999">thanhngucomvn999</a></p>
+</div>
+</body>
+</html>
