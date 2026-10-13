@@ -2,10 +2,6 @@ import { CONFIG } from '../constants.js';
 import { logger } from '../logger.js';
 
 export class UIController {
-  // ═══════════════════════════════════════════════════
-  // FULL 5-EVENT DISPATCH (từ repo gốc)
-  // React/Vue cần đầy đủ pointer + mouse events
-  // ═══════════════════════════════════════════════════
   static _dispatchFullClick(el) {
     if (!el) return false;
     try { el.scrollIntoView({ block: 'center', inline: 'center' }); } catch (_) {}
@@ -28,7 +24,6 @@ export class UIController {
       el.dispatchEvent(ev);
     });
 
-    // Fallback cho input radio/checkbox
     if (el.tagName === 'INPUT' && (el.type === 'radio' || el.type === 'checkbox')) {
       el.checked = true;
       el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -36,19 +31,14 @@ export class UIController {
     return true;
   }
 
-  // ═══════════════════════════════════════════════════
-  // VERIFY SELECTION
-  // ═══════════════════════════════════════════════════
   static isSelected(el) {
     if (!el) return false;
     if (el.checked) return true;
-
     const cls = (el.className || '').toString().toLowerCase();
     if (/(selected|active|checked|chosen|picked)/.test(cls)) return true;
     if (el.getAttribute('aria-checked') === 'true') return true;
     if (el.getAttribute('aria-selected') === 'true') return true;
 
-    // Kiểm tra background color
     try {
       const bg = window.getComputedStyle(el).backgroundColor;
       if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent' && bg !== 'rgb(255, 255, 255)') {
@@ -56,7 +46,6 @@ export class UIController {
       }
     } catch (_) {}
 
-    // Kiểm tra parent
     const parent = el.closest('div, label, li');
     if (parent) {
       const pc = (parent.className || '').toString().toLowerCase();
@@ -66,9 +55,6 @@ export class UIController {
     return false;
   }
 
-  // ═══════════════════════════════════════════════════
-  // TRUE/FALSE — Interaction-First (dạng div hoặc input)
-  // ═══════════════════════════════════════════════════
   static async selectTrueFalse(q, answer) {
     const isTrue = Scraper._normVN(answer) === 'dung';
     const target = isTrue ? q.tfEls.trueEl : q.tfEls.falseEl;
@@ -78,11 +64,9 @@ export class UIController {
       return false;
     }
 
-    // Attempt 1: Click trực tiếp
     UIController._dispatchFullClick(target);
     await UIController._sleep(150);
 
-    // Attempt 2: Verify, nếu chưa selected thì click label/parent
     if (!UIController.isSelected(target)) {
       const alt = target.closest('label, .answer-item, .choice, div') || target.parentElement;
       if (alt && alt !== target) {
@@ -91,7 +75,6 @@ export class UIController {
       }
     }
 
-    // Attempt 3: Nếu vẫn chưa selected, force bằng cách click input ẩn
     if (!UIController.isSelected(target) && q.tfEls.type === 'input') {
       const input = target.querySelector('input') || target;
       if (input && input.tagName === 'INPUT') {
@@ -104,9 +87,6 @@ export class UIController {
     return UIController.isSelected(target);
   }
 
-  // ═══════════════════════════════════════════════════
-  // MULTIPLE CHOICE
-  // ═══════════════════════════════════════════════════
   static async selectChoice(q, answer) {
     const upper = (answer || '').toUpperCase();
     const c = q.choices.find((x) => x.letter === upper) || q.choices[0];
@@ -116,7 +96,6 @@ export class UIController {
     await UIController._sleep(150);
 
     if (!UIController.isSelected(c.el)) {
-      // Thử click parent (label thường chứa input ẩn)
       const alt = c.el.closest('label, .answer-item, .choice, li') || c.el.parentElement;
       if (alt && alt !== c.el) {
         UIController._dispatchFullClick(alt);
@@ -132,9 +111,6 @@ export class UIController {
     return UIController.isSelected(c.el);
   }
 
-  // ═══════════════════════════════════════════════════
-  // FILL-IN — Human-like typing (từ repo gốc)
-  // ═══════════════════════════════════════════════════
   static async typeInto(input, text) {
     if (!input || !text) return false;
 
@@ -142,7 +118,6 @@ export class UIController {
     input.click();
     await UIController._sleep(80);
 
-    // Xoá nội dung cũ bằng native setter
     const proto = input.tagName === 'TEXTAREA'
       ? HTMLTextAreaElement.prototype
       : HTMLInputElement.prototype;
@@ -152,13 +127,11 @@ export class UIController {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
 
-    // Chế độ tức thời
     if (CONFIG.INSTANT_MODE) {
       setter.call(input, text);
       input.dispatchEvent(new Event('input', { bubbles: true }));
       input.dispatchEvent(new Event('change', { bubbles: true }));
     } else {
-      // Gõ từng ký tự như người thật
       for (const ch of text) {
         setter.call(input, input.value + ch);
         input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -176,15 +149,9 @@ export class UIController {
     return true;
   }
 
-  // ═══════════════════════════════════════════════════
-  // SMART RESET LOOP (từ repo gốc)
-  // Reset tất cả input + trạng thái để giải lại
-  // ═══════════════════════════════════════════════════
   static smartReset() {
     if (!CONFIG.ENABLE_SMART_RESET) return;
-
     try {
-      // 1. Reset tất cả input text/number
       document.querySelectorAll('input[type="text"], input[type="number"], input:not([type]), textarea').forEach((input) => {
         const proto = input.tagName === 'TEXTAREA'
           ? HTMLTextAreaElement.prototype
@@ -195,13 +162,11 @@ export class UIController {
         input.dispatchEvent(new Event('change', { bubbles: true }));
       });
 
-      // 2. Uncheck tất cả radio/checkbox
       document.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach((input) => {
         input.checked = false;
         input.dispatchEvent(new Event('change', { bubbles: true }));
       });
 
-      // 3. Xoá class selected/active
       document.querySelectorAll('[class*="selected"], [class*="active"], [class*="checked"]').forEach((el) => {
         el.classList.remove('selected', 'active', 'checked', 'chosen', 'picked');
       });
@@ -212,9 +177,6 @@ export class UIController {
     }
   }
 
-  // ═══════════════════════════════════════════════════
-  // SLEEP HELPER
-  // ═══════════════════════════════════════════════════
   static _sleep(ms) {
     return new Promise((r) => setTimeout(r, ms));
   }
