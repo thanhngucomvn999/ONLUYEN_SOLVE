@@ -6,24 +6,17 @@ export class Panel {
   static build(solver, storage) {
     if (document.getElementById('olv-panel')) return;
 
-    // ═══════════════════════════════════════════════════
-    // LẤY VERSION ĐỘNG
-    // ═══════════════════════════════════════════════════
     const SCRIPT_VERSION = (() => {
       try {
         if (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) {
           return GM_info.script.version;
         }
-        // Fallback nếu GM_info không có (test mode)
-        return '3.0.0';
+        return '3.1.0';
       } catch (_) {
-        return '3.0.0';
+        return '3.1.0';
       }
     })();
 
-    // ═══════════════════════════════════════════════════
-    // INJECT CSS
-    // ═══════════════════════════════════════════════════
     const style = document.createElement('style');
     style.textContent = `
       #olv-panel{position:fixed;top:16px;right:16px;z-index:2147483647;width:440px;
@@ -63,7 +56,6 @@ export class Panel {
       #olv-panel .body.active{display:block}
       #olv-panel .body::-webkit-scrollbar{width:8px}
       #olv-panel .body::-webkit-scrollbar-thumb{background:#45475a;border-radius:4px}
-      #olv-panel .body::-webkit-scrollbar-thumb:hover{background:#585b70}
       #olv-panel .section{padding:14px 16px}
       #olv-panel .row{display:flex;gap:6px;margin-bottom:6px}
       #olv-panel button{flex:1;background:#313244;color:#cdd6f4;border:1px solid #45475a;
@@ -79,7 +71,6 @@ export class Panel {
       #olv-panel button.go:hover{box-shadow:0 4px 14px rgba(166,227,161,.4)}
       #olv-panel button.stop{background:linear-gradient(135deg,#f38ba8 0%,#eba0ac 100%);
         color:#11111b;border:0;font-weight:700}
-      #olv-panel button.stop:hover{box-shadow:0 4px 14px rgba(243,139,168,.4)}
       #olv-panel button.debug{color:#f9e2af}
       #olv-panel button.test{color:#89b4fa}
       #olv-panel .mini-btn{flex:0 0 auto;padding:10px 11px}
@@ -115,6 +106,34 @@ export class Panel {
         margin:12px 0}
       #olv-panel .custom-wrap{display:none}
       #olv-panel .custom-wrap.active{display:block}
+      #olv-stats{margin-top:10px;background:#11111b;border-radius:10px;
+        border:1px solid #313244;overflow:hidden}
+      #olv-stats .stats-head{padding:9px 12px;background:rgba(137,180,250,.08);
+        font-size:10px;font-weight:700;color:#89b4fa;
+        text-transform:uppercase;letter-spacing:.6px;
+        display:flex;justify-content:space-between;align-items:center}
+      #olv-stats .stats-head .total{color:#a6e3a1;font-size:12px}
+      #olv-stats .stats-body{padding:8px 12px}
+      #olv-stats .stat-row{display:flex;justify-content:space-between;
+        align-items:center;padding:6px 0;
+        border-bottom:1px solid rgba(69,71,90,.3);
+        font-size:11px;color:#bac2de}
+      #olv-stats .stat-row:last-child{border-bottom:0}
+      #olv-stats .stat-row .stat-label{display:flex;align-items:center;gap:6px}
+      #olv-stats .stat-row .stat-value{font-weight:700;font-family:monospace;
+        padding:1px 8px;border-radius:6px;background:rgba(69,71,90,.4)}
+      #olv-stats .stat-row.choice .stat-value{color:#89b4fa;background:rgba(137,180,250,.15)}
+      #olv-stats .stat-row.tf .stat-value{color:#f9e2af;background:rgba(249,226,175,.15)}
+      #olv-stats .stat-row.fill .stat-value{color:#cba6f7;background:rgba(203,166,247,.15)}
+      #olv-stats .stat-row.done .stat-value{color:#a6e3a1;background:rgba(166,227,161,.15)}
+      #olv-stats .stat-row.pending .stat-value{color:#f38ba8;background:rgba(243,139,168,.15)}
+      #olv-stats .stat-row.cache .stat-value{color:#94e2d5;background:rgba(148,226,213,.15)}
+      #olv-stats .stats-sep{height:1px;background:#313244;margin:4px 0}
+      #olv-stats .progress-wrap{height:6px;background:#313244;border-radius:3px;
+        overflow:hidden;margin-top:8px}
+      #olv-stats .progress-bar{height:100%;
+        background:linear-gradient(90deg,#a6e3a1,#94e2d5);
+        transition:width .3s ease}
       #olv-log{max-height:260px;overflow:auto;background:#11111b;padding:10px 12px;
         border-radius:8px;font-size:10px;line-height:1.6;
         font-family:"JetBrains Mono","Consolas",monospace;color:#a6adc8;
@@ -132,16 +151,12 @@ export class Panel {
         text-align:center;border-top:1px solid #313244;display:flex;
         justify-content:space-between;align-items:center}
       #olv-panel .footer a{color:#89b4fa;text-decoration:none}
-      #olv-panel .footer a:hover{text-decoration:underline}
       @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
       @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
       .olv-spin{animation:spin 1s linear infinite;display:inline-block}
     `;
     document.head.appendChild(style);
 
-    // ═══════════════════════════════════════════════════
-    // BUILD HTML
-    // ═══════════════════════════════════════════════════
     const p = document.createElement('div');
     p.id = 'olv-panel';
     p.innerHTML = `
@@ -177,8 +192,20 @@ export class Panel {
             <button id="olv-debug" class="debug">🔍 Quét thử</button>
             <button id="olv-stop" class="stop">■ Dừng</button>
           </div>
+
+          <div id="olv-stats">
+            <div class="stats-head">
+              <span>📊 Thống kê bài làm</span>
+              <span class="total" id="olv-stats-total">—</span>
+            </div>
+            <div class="stats-body" id="olv-stats-body">
+              <div class="stat-row">
+                <span class="stat-label">Bấm "🔍 Quét thử" để xem chi tiết</span>
+              </div>
+            </div>
+          </div>
+
           <div class="divider"></div>
-          <label>📊 Thống kê <span class="hint" id="olv-stats-hint">0 cache</span></label>
           <div class="row">
             <button id="olv-clear">🗑 Xoá cache</button>
             <button id="olv-export">📤 Export log</button>
@@ -188,10 +215,7 @@ export class Panel {
 
       <div class="body" id="olv-tab-settings">
         <div class="section">
-          <label>
-            🔌 API Provider
-            <span class="badge free" id="olv-badge">Free</span>
-          </label>
+          <label>🔌 API Provider <span class="badge free" id="olv-badge">Free</span></label>
           <select id="olv-provider">
             <optgroup label="🟢 Miễn phí">
               <option value="groq">Groq — Llama 3.3 70B</option>
@@ -209,19 +233,13 @@ export class Panel {
             </optgroup>
           </select>
 
-          <label>
-            🔑 API Key
-            <span class="hint"><a href="#" id="olv-get-key">Lấy key →</a></span>
-          </label>
+          <label>🔑 API Key <span class="hint"><a href="#" id="olv-get-key">Lấy key →</a></span></label>
           <div class="input-group">
             <input id="olv-key" type="password" placeholder="Dán API key...">
             <button id="olv-toggle-key" class="mini-btn" title="Hiện/Ẩn">👁</button>
           </div>
 
-          <label>
-            📦 Model
-            <span class="hint"><a href="#" id="olv-refresh-models">⟳ Refresh</a></span>
-          </label>
+          <label>📦 Model <span class="hint"><a href="#" id="olv-refresh-models">⟳ Refresh</a></span></label>
           <select id="olv-model"></select>
 
           <div class="custom-wrap" id="olv-custom-wrap">
@@ -237,7 +255,6 @@ export class Panel {
           </div>
 
           <div class="divider"></div>
-
           <label>🛠 Tuỳ chọn nâng cao</label>
           <div class="row">
             <button id="olv-copy-cfg">📋 Copy config</button>
@@ -261,11 +278,7 @@ export class Panel {
     `;
     document.body.appendChild(p);
 
-    // ═══════════════════════════════════════════════════
-    // HELPERS
-    // ═══════════════════════════════════════════════════
     const $ = (id) => document.getElementById(id);
-
     const provSel = $('olv-provider');
     const keyInput = $('olv-key');
     const modelSel = $('olv-model');
@@ -274,23 +287,87 @@ export class Panel {
     const statusEl = $('olv-status');
     const timeEl = $('olv-time');
     const dotEl = $('olv-dot');
-    const statsHint = $('olv-stats-hint');
+    const statsBody = $('olv-stats-body');
+    const statsTotal = $('olv-stats-total');
 
     function setStatus(msg, type) {
       statusEl.textContent = msg;
       dotEl.className = 'dot ' + (type === 'ok' ? 'ok' : type === 'err' ? 'err' : type === 'busy' ? 'busy' : '');
     }
 
-    function updateStats() {
+    function renderStats() {
+      const list = Scraper.scanAll();
+      const total = list.length;
+
+      let choiceCount = 0, tfCount = 0, fillCount = 0, otherCount = 0;
+      list.forEach((q) => {
+        if (q.type === 'choice') choiceCount++;
+        else if (q.type === 'truefalse') tfCount++;
+        else if (q.type === 'fill') fillCount++;
+        else otherCount++;
+      });
+
+      let doneCount = 0;
+      list.forEach((q) => {
+        try {
+          if (Scraper.isAnswered && Scraper.isAnswered(q)) doneCount++;
+        } catch (_) {}
+      });
+      const pendingCount = total - doneCount;
+
+      let cacheCount = 0;
       try {
         const cache = storage.getCache();
-        statsHint.textContent = Object.keys(cache).length + ' cache';
+        cacheCount = list.filter((q) => {
+          const key = storage.hashQ(q.text + '|' + q.type);
+          return !!cache[key];
+        }).length;
       } catch (_) {}
+
+      const progressPct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+
+      statsTotal.textContent = `${total} câu`;
+      statsBody.innerHTML = `
+        <div class="stat-row choice">
+          <span class="stat-label">🅰 Trắc nghiệm</span>
+          <span class="stat-value">${choiceCount}</span>
+        </div>
+        <div class="stat-row tf">
+          <span class="stat-label">✓ Đúng / Sai</span>
+          <span class="stat-value">${tfCount}</span>
+        </div>
+        <div class="stat-row fill">
+          <span class="stat-label">✏ Điền text</span>
+          <span class="stat-value">${fillCount}</span>
+        </div>
+        ${otherCount > 0 ? `
+        <div class="stat-row">
+          <span class="stat-label">❓ Khác</span>
+          <span class="stat-value">${otherCount}</span>
+        </div>` : ''}
+        <div class="stats-sep"></div>
+        <div class="stat-row done">
+          <span class="stat-label">✅ Đã làm</span>
+          <span class="stat-value">${doneCount}</span>
+        </div>
+        <div class="stat-row pending">
+          <span class="stat-label">⏳ Chưa làm</span>
+          <span class="stat-value">${pendingCount}</span>
+        </div>
+        <div class="stats-sep"></div>
+        <div class="stat-row cache">
+          <span class="stat-label">📦 Cache đã lưu</span>
+          <span class="stat-value">${cacheCount}</span>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-bar" style="width:${progressPct}%"></div>
+        </div>
+      `;
+
+      setStatus(`Tổng: ${total} câu (${doneCount} đã làm / ${pendingCount} chưa làm)`, total > 0 ? 'ok' : 'err');
+      return { total, choiceCount, tfCount, fillCount, doneCount, pendingCount, cacheCount };
     }
 
-    // ═══════════════════════════════════════════════════
-    // TABS
-    // ═══════════════════════════════════════════════════
     p.querySelectorAll('.tab').forEach((tab) => {
       tab.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -302,9 +379,6 @@ export class Panel {
       });
     });
 
-    // ═══════════════════════════════════════════════════
-    // PROVIDER UI
-    // ═══════════════════════════════════════════════════
     const KEY_URLS = {
       groq: 'https://console.groq.com/keys',
       gemini: 'https://aistudio.google.com/app/apikey',
@@ -320,12 +394,10 @@ export class Panel {
       const id = provSel.value;
       const pr = PROVIDER_REGISTRY[id];
       if (!pr) return;
-
       badge.className = 'badge ' + pr.category;
       badge.textContent = pr.category === 'free' ? 'Free' : pr.category === 'paid' ? 'Paid' : 'Custom';
       keyInput.value = storage.getKey(id);
       modelSel.innerHTML = '';
-
       if (id === 'custom') {
         modelSel.style.display = 'none';
         customWrap.classList.add('active');
@@ -356,47 +428,33 @@ export class Panel {
     provSel.value = storage.getSelectedProvider();
     refreshProviderUI();
 
-    // ═══════════════════════════════════════════════════
-    // EVENT DELEGATION — MAIN HANDLER
-    // ═══════════════════════════════════════════════════
     p.addEventListener('click', async (e) => {
       const btn = e.target.closest('button, a[id], span[id]');
       if (!btn) return;
       const id = btn.id;
       if (!id) return;
-
       console.log('[ONLUYEN] Click:', id);
       e.preventDefault();
       e.stopPropagation();
 
       try {
-        // ─── HEADER ───
-        if (id === 'olv-mini') {
-          p.classList.toggle('mini');
-          return;
-        }
+        if (id === 'olv-mini') { p.classList.toggle('mini'); return; }
         if (id === 'olv-toggle') {
           p.querySelectorAll('.body').forEach((b) => b.classList.remove('active'));
           const active = p.querySelector('.tab.active');
           if (active) $('olv-tab-' + active.dataset.tab).classList.add('active');
           return;
         }
-
-        // ─── KEY VISIBILITY ───
         if (id === 'olv-toggle-key') {
           keyInput.type = keyInput.type === 'password' ? 'text' : 'password';
           return;
         }
-
-        // ─── GET KEY ───
         if (id === 'olv-get-key') {
           const url = KEY_URLS[provSel.value];
           if (url) window.open(url, '_blank');
-          else logger.warn('Không có link lấy key cho provider này');
           return;
         }
 
-        // ─── REFRESH MODELS ───
         if (id === 'olv-refresh-models') {
           const provId = provSel.value;
           const key = keyInput.value.trim();
@@ -416,7 +474,7 @@ export class Panel {
                 if (storage.getModel(provId) === m) opt.selected = true;
                 modelSel.appendChild(opt);
               });
-              logger.info(`Đã tải ${models.length} models cho ${PROVIDER_REGISTRY[provId].name}`);
+              logger.info(`Đã tải ${models.length} models`);
               setStatus(`Đã tải ${models.length} models`, 'ok');
             }
           } catch (err) {
@@ -427,7 +485,6 @@ export class Panel {
           return;
         }
 
-        // ─── SAVE ───
         if (id === 'olv-save') {
           const provId = provSel.value;
           storage.setSelectedProvider(provId);
@@ -443,7 +500,6 @@ export class Panel {
           return;
         }
 
-        // ─── TEST ───
         if (id === 'olv-test') {
           const provId = provSel.value;
           setStatus('Đang test ' + PROVIDER_REGISTRY[provId].name + '...', 'busy');
@@ -477,7 +533,6 @@ export class Panel {
           return;
         }
 
-        // ─── START ───
         if (id === 'olv-start') {
           setStatus('Đang giải...', 'busy');
           try {
@@ -486,11 +541,10 @@ export class Panel {
           } catch (err) {
             setStatus('Lỗi: ' + err.message, 'err');
           }
-          updateStats();
+          renderStats();
           return;
         }
 
-        // ─── SOLVE ONCE ───
         if (id === 'olv-once') {
           const l = Scraper.scanAll();
           const cache = storage.getCache();
@@ -503,36 +557,38 @@ export class Panel {
             logger.info('Không còn câu chưa giải');
             setStatus('Hết câu chưa giải', 'ok');
           }
-          updateStats();
+          renderStats();
           return;
         }
 
-        // ─── DEBUG ───
         if (id === 'olv-debug') {
-          const l = Scraper.scanAll();
-          logger.info(`🔍 Quét thử: ${l.length} câu`);
-          l.forEach((q, i) => logger.info(`  ${i + 1}. [${q.type}] ${q.text.substring(0, 50)}...`));
-          setStatus(`Tìm thấy ${l.length} câu`, l.length > 0 ? 'ok' : 'err');
+          const t0 = performance.now();
+          const stats = renderStats();
+          const elapsed = Math.round(performance.now() - t0);
+          timeEl.textContent = elapsed + 'ms';
+
+          logger.info(`🔍 Quét thử (${elapsed}ms)`);
+          logger.info(`   Tổng: ${stats.total} câu`);
+          logger.info(`   🅰 Trắc nghiệm: ${stats.choiceCount}`);
+          logger.info(`   ✓ Đúng/Sai: ${stats.tfCount}`);
+          logger.info(`   ✏ Điền text: ${stats.fillCount}`);
+          logger.info(`   ✅ Đã làm: ${stats.doneCount} | ⏳ Chưa: ${stats.pendingCount}`);
+          logger.info(`   📦 Cache: ${stats.cacheCount}`);
           return;
         }
 
-        // ─── STOP ───
         if (id === 'olv-stop') {
           solver.stop();
           setStatus('Đã dừng', 'ok');
           return;
         }
-
-        // ─── CLEAR CACHE ───
         if (id === 'olv-clear') {
           storage.clearCache();
           logger.info('🗑 Đã xoá cache');
           setStatus('Đã xoá cache', 'ok');
-          updateStats();
+          renderStats();
           return;
         }
-
-        // ─── EXPORT LOG ───
         if (id === 'olv-export') {
           const logs = logger.history.map((h) => `[${h.timestamp}] [${h.level}] ${h.messages.join(' ')}`).join('\n');
           const blob = new Blob([logs], { type: 'text/plain' });
@@ -545,21 +601,16 @@ export class Panel {
           logger.info('Đã export log');
           return;
         }
-
-        // ─── CLEAR LOG ───
         if (id === 'olv-clear-log') {
           const box = $('olv-log');
           if (box) box.innerHTML = '';
           logger.info('Đã xoá log panel');
           return;
         }
-
-        // ─── COPY CONFIG ───
         if (id === 'olv-copy-cfg') {
           const c = {
             selectedProvider: storage.getSelectedProvider(),
-            keys: {},
-            models: {},
+            keys: {}, models: {},
             customBaseUrl: storage.getCustomUrl(),
             customModel: storage.getCustomModel(),
           };
@@ -578,8 +629,6 @@ export class Panel {
           }
           return;
         }
-
-        // ─── PASTE CONFIG ───
         if (id === 'olv-paste-cfg') {
           try {
             const text = await navigator.clipboard.readText();
@@ -604,9 +653,6 @@ export class Panel {
       }
     });
 
-    // ═══════════════════════════════════════════════════
-    // FETCH MODELS
-    // ═══════════════════════════════════════════════════
     async function fetchModels(provId, key) {
       if (['groq', 'openai', 'deepseek', 'openrouter', 'cerebras'].includes(provId)) {
         const baseUrl = PROVIDER_REGISTRY[provId].baseUrl.replace('/chat/completions', '/models');
@@ -624,9 +670,6 @@ export class Panel {
       return [];
     }
 
-    // ═══════════════════════════════════════════════════
-    // DRAG HEADER
-    // ═══════════════════════════════════════════════════
     const head = p.querySelector('.head');
     let dx = 0, dy = 0, drag = false;
     head.addEventListener('mousedown', (e) => {
@@ -643,9 +686,6 @@ export class Panel {
     });
     document.addEventListener('mouseup', () => { drag = false; });
 
-    // ═══════════════════════════════════════════════════
-    // KEYBOARD SHORTCUT
-    // ═══════════════════════════════════════════════════
     document.addEventListener('keydown', (e) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'S') {
         e.preventDefault();
@@ -654,9 +694,8 @@ export class Panel {
       }
     });
 
-    updateStats();
     setStatus('Sẵn sàng', 'ok');
-
+    renderStats();
     console.log(`[ONLUYEN] Panel v${SCRIPT_VERSION} initialized`);
   }
 }
