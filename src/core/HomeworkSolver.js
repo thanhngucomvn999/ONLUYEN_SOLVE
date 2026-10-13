@@ -12,11 +12,7 @@ export class HomeworkSolver {
     this.history = [];
   }
 
-  // ═══════════════════════════════════════════════════
-  // PARSE ANSWER — Flexible Formatting (VN)
-  // ═══════════════════════════════════════════════════
   _parseAnswer(raw, type) {
-    // Tách phần suy luận (trước ---) và đáp án (sau ---)
     const parts = raw.split('---');
     let ans = parts.length > 1 ? parts[1].trim() : parts[0].trim();
 
@@ -25,55 +21,43 @@ export class HomeworkSolver {
       logger.info('💭 Suy luận: ' + reasoning.slice(0, 100));
     }
 
-    // True/False
     if (type === 'truefalse') {
       const low = ans.toLowerCase();
       if (/^(đúng|true|yes|t|1|\+)/.test(low)) return 'Đúng';
       if (/^(sai|false|no|f|0|-)/.test(low)) return 'Sai';
     }
 
-    // Multiple Choice
     if (type === 'choice') {
       const m = ans.match(/\b([A-D])\b/i);
       if (m) return m[1].toUpperCase();
-      // Đôi khi model trả về full text — tìm chữ cái đầu
       const firstChar = ans.trim().charAt(0).toUpperCase();
       if (/[A-D]/.test(firstChar)) return firstChar;
     }
 
-    // Fill-in — Format theo VN
     if (type === 'fill') {
       ans = ans
-        .replace(/^[=:]\s*/, '')      // Bỏ dấu = hoặc :
-        .replace(/\.$/, '')           // Bỏ dấu chấm cuối
-        .replace(/\./g, ',')          // Đổi . thành ,
-        .replace(/\s+/g, ' ')         // Chuẩn hoá khoảng trắng
+        .replace(/^[=:]\s*/, '')
+        .replace(/\.$/, '')
+        .replace(/\./g, ',')
+        .replace(/\s+/g, ' ')
         .trim();
 
-      // Nếu là số nguyên, giữ nguyên
       if (/^-?\d+$/.test(ans)) return ans;
-
-      // Nếu là phân số, giữ nguyên
       if (/^-?\d+\/-?\d+$/.test(ans)) return ans;
     }
 
     return ans;
   }
 
-  // ═══════════════════════════════════════════════════
-  // SOLVE ONE — Logic-First + Interaction-First
-  // ═══════════════════════════════════════════════════
   async solveOne(q) {
     const key = this.storage.hashQ(q.text + '|' + q.type);
     const cache = this.storage.getCache();
     let answer;
 
-    // ─── Cache hit ───
     if (cache[key]) {
       answer = cache[key];
       logger.info('📦 Cache: "' + answer + '"');
     } else {
-      // ─── Gọi AI ───
       try {
         const raw = await this.api.getAnswer(q);
         answer = this._parseAnswer(raw, q.type);
@@ -87,9 +71,7 @@ export class HomeworkSolver {
 
     logger.info('✅ [' + q.type + '] → "' + answer + '"');
 
-    // ─── Interaction-First: Áp dụng đáp án ───
     let success = false;
-
     if (q.type === 'truefalse') {
       success = await UIController.selectTrueFalse(q, answer);
     } else if (q.type === 'choice') {
@@ -102,7 +84,6 @@ export class HomeworkSolver {
       logger.warn('⚠️ Không apply được đáp án cho câu ' + q.type);
     }
 
-    // Lưu history để export
     this.history.push({
       question: q.text.slice(0, 80),
       type: q.type,
@@ -114,9 +95,6 @@ export class HomeworkSolver {
     return success;
   }
 
-  // ═══════════════════════════════════════════════════
-  // SOLVE ALL — Sequential + Rate Limiting
-  // ═══════════════════════════════════════════════════
   async solveAll() {
     this.state.stopped = false;
     this.state.running = true;
@@ -147,7 +125,6 @@ export class HomeworkSolver {
         logger.error('❌ Câu ' + (i + 1) + ': ' + err.message);
       }
 
-      // Rate limiting
       if (i < list.length - 1) {
         await new Promise((r) => setTimeout(r, CONFIG.RATE_LIMIT_MS));
       }
@@ -157,17 +134,11 @@ export class HomeworkSolver {
     this.state.running = false;
   }
 
-  // ═══════════════════════════════════════════════════
-  // STOP
-  // ═══════════════════════════════════════════════════
   stop() {
     this.state.stopped = true;
     logger.info('⏹ Đã dừng');
   }
 
-  // ═══════════════════════════════════════════════════
-  // EXPORT HISTORY
-  // ═══════════════════════════════════════════════════
   exportHistory() {
     return this.history;
   }
