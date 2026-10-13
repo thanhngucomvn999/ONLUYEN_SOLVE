@@ -8,8 +8,9 @@ export default defineConfig({
       userscript: {
         name: 'ONLUYEN Solver',
         namespace: 'thanhngucomvn999.ONLUYEN_SOLVE',
-        version: '1.0.0',
+        version: '3.1.0',
         description: 'AI Homework Solver - Multi-provider',
+        author: 'thanhngucomvn999',
         match: ['https://app.onluyen.vn/*', 'https://*.onluyen.vn/*'],
         grant: ['GM_xmlhttpRequest', 'GM_setValue', 'GM_getValue'],
         connect: [
